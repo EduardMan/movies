@@ -11,7 +11,7 @@ CREATE TABLE movie
     overview          TEXT,
     popularity        FLOAT,
     release_date      DATE,
-    revenue           INT,
+    revenue           BIGINT,
     runtime           INT,
     status            TEXT,
     tagline           TEXT,
@@ -40,7 +40,7 @@ CREATE TABLE collection
 CREATE TABLE movie_collection
 (
     movie_id BIGINT REFERENCES movie,
-    genre_id BIGINT REFERENCES collection
+    collection_id BIGINT REFERENCES collection
 );
 
 CREATE TABLE production_company

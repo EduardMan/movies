@@ -2,19 +2,17 @@ package tech.itparklessons.movies.service.impl;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.apache.commons.csv.CSVRecord;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import tech.itparklessons.movies.service.MovieService;
 
 import java.io.IOException;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,167 +22,155 @@ public class MovieServiceImpl implements MovieService {
     private final JdbcTemplate jdbcTemplate;
 
     private final String sqlMovieInsert =
-            "INSERT INTO movie (id, title, original_title, budget) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING";
+            "INSERT INTO movie (id, title, original_title, budget, adult, homepage, imdb_id, original_language," +
+                    "overview, popularity, release_date, revenue, runtime, status, tagline, vote_average, vote_count) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
 
     private final String sqlMovieGenreInsert =
             "INSERT INTO movie_genre (movie_id, genre_id) VALUES (?, ?)";
 
     private final String sqlGenreInsert = "INSERT INTO genre(name, id) VALUES (?, ?) ON CONFLICT DO NOTHING";
 
+    private final String sqlCollectionInsert = "INSERT INTO collection(id, name) VALUES (?, ?) ON CONFLICT DO NOTHING";
+
+    private final String sqlMovieCollectionInsert =
+            "INSERT INTO movie_collection (movie_id, collection_id) VALUES (?, ?)";
+
     public final ObjectMapper fromJson = new ObjectMapper();
+
+    private List<Map<String, ?>> genres;
+    private HashMap<String, String> belongsToCollection;
 
     @Override
     public void importMovies(List<CSVRecord> records) throws IOException {
         fromJson.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        fromJson.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
 
-        List<List<CSVRecord>> batchLists = Lists.partition(records, 3000);
+        List<List<CSVRecord>> batchLists = Lists.partition(records, 5000);
 
 
         for (List<CSVRecord> batch :
                 batchLists) {
 
-            List<Object[]> genresObj = new ArrayList<>();
-            List<Object[]> moviesObj = new ArrayList<>();
-            List<Object[]> moviesGenre = new ArrayList<>();
+            List<Object[]> genresBatchArgs = new ArrayList<>();
+            List<Object[]> collectionsBatchArgs = new ArrayList<>();
+            List<Object[]> moviesBatchArgs = new ArrayList<>();
+            List<Object[]> moviesGenreBatchArgs = new ArrayList<>();
+            List<Object[]> moviesCollectionBatchArgs = new ArrayList<>();
 
             for (int i = 0; i < batch.size(); i++) {
                 CSVRecord csvRecord = batch.get(i);
 
-                //Genres
-                List<Map<String, ?>> genres = fromJson.readValue(csvRecord.get("genres"), new TypeReference<List<HashMap<String, ?>>>() {
-                });
-                List<Object[]> arrayOfGenres = genres.stream()
-                        .map(longStringMap -> longStringMap.values().toArray())
-                        .collect(Collectors.toList());
-
-                genresObj.addAll(arrayOfGenres);
+                genresBatchArgs.addAll(prepareGenresBatchArgs(csvRecord));
+                collectionsBatchArgs.addAll(prepareCollectionBatchArgs(csvRecord));
 
                 //Movies
+                boolean adult = Boolean.getBoolean(csvRecord.get("adult"));
+                int budget = Integer.parseInt(csvRecord.get("budget"));
+                String homepage = csvRecord.get("homepage");
                 int movieId = Integer.parseInt(csvRecord.get("id"));
-                String original_title = csvRecord.get("original_title");
-                String title = "";
-                int budget = 0;
+                String imdbId = csvRecord.get("imdb_id");
+                String originalLanguage = csvRecord.get("original_language");
+                String originalTitle = csvRecord.get("original_title");
+                String overview = csvRecord.get("overview");
+
+
+                String title;
+                float popularity;
+                LocalDate releaseDate;
+                long revenue;
+                int runtime;
+                String status;
+                String tagline;
+                float voteAverage;
+                int voteCount;
                 if (csvRecord.size() > 11) {
+                    popularity = Float.parseFloat(csvRecord.get("popularity"));
+                    releaseDate = "".equals(csvRecord.get("release_date")) ? null : LocalDate.parse(csvRecord.get("release_date"));
+                    revenue = Long.parseLong(csvRecord.get("revenue"));
+                    runtime = "".equals(csvRecord.get("runtime")) ? 0 : Integer.parseInt(csvRecord.get("runtime").replaceAll("\\..*", ""));
+                    status = csvRecord.get("status");
+                    tagline = csvRecord.get("tagline");
                     title = csvRecord.get("title");
-                    budget = Integer.parseInt(csvRecord.get("budget"));
+                    voteAverage = Float.parseFloat(csvRecord.get("vote_average"));
+                    voteCount = Integer.parseInt(csvRecord.get("vote_count"));
                 } else {
                     csvRecord = batch.get(++i);
+                    overview += csvRecord.get("adult");
+                    popularity = Float.parseFloat(csvRecord.get("belongs_to_collection"));
+                    releaseDate = "".equals(csvRecord.get("release_date")) ? null : LocalDate.parse(csvRecord.get("id"));
+                    revenue = Long.parseLong(csvRecord.get("imdb_id"));
+                    runtime = Integer.parseInt(csvRecord.get("original_language").replaceAll("\\..*", ""));
+                    status = csvRecord.get("overview");
+                    tagline = csvRecord.get("popularity");
                     title = csvRecord.get("poster_path");
-                    budget = 0;
+                    voteAverage = Float.parseFloat(csvRecord.get("production_countries"));
+                    voteCount = Integer.parseInt(csvRecord.get("release_date"));
                 }
-                Object[] movieFields = {movieId, title, original_title, budget};
-                moviesObj.add(movieFields);
+                Object[] movieFields = {movieId, title, originalTitle, budget, adult, homepage, imdbId, originalLanguage,
+                        overview, popularity, releaseDate, revenue, runtime, status, tagline, voteAverage, voteCount};
+                moviesBatchArgs.add(movieFields);
 
-                //Movie_Genre
-                List<Object[]> moviesGenres = genres.stream()
-                        .map(stringMap -> new Object[]{movieId, stringMap.get("id")})
-                        .collect(Collectors.toList());
-                moviesGenre.addAll(moviesGenres);
-
-
+                moviesGenreBatchArgs.addAll(prepareMovieGenreBatchArgs(movieId));
+                moviesCollectionBatchArgs.addAll(prepareMovieCollectionBatchArgs(movieId));
 
             }
-            jdbcTemplate.batchUpdate(sqlGenreInsert, genresObj);
-            jdbcTemplate.batchUpdate(sqlMovieInsert, moviesObj);
-            jdbcTemplate.batchUpdate(sqlMovieGenreInsert, moviesGenre);
-        }
 
-    }
-
-
-    //    @Override
-    public void importMoviesOld(List<CSVRecord> records) {
-        List<List<CSVRecord>> batchLists = Lists.partition(records, 100);
-
-        for (List<CSVRecord> batch : batchLists) {
-
-            insertGenres(batch);
-
-            jdbcTemplate.batchUpdate(sqlMovieInsert, new BatchPreparedStatementSetter() {
-                @SneakyThrows
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    CSVRecord csvRecord = batch.get(i);
-
-                    ps.setInt(1, Integer.parseInt(csvRecord.get("id")));
-                    ps.setString(2, csvRecord.get("title"));
-                    ps.setString(3, csvRecord.get("original_title"));
-                    ps.setInt(4, Integer.parseInt(csvRecord.get("budget")));
-                }
-
-                @Override
-                public int getBatchSize() {
-                    return batch.size();
-                }
-            });
-
-
-//            for (:
-//                 ){
-//
-//            }
-
-//            jdbcTemplate.batchUpdate(sqlMovieGenreInsert, );
-
-
-            jdbcTemplate.batchUpdate(sqlMovieGenreInsert, new BatchPreparedStatementSetter() {
-                @SneakyThrows
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    CSVRecord csvRecord = batch.get(i);
-
-                    final String genres = csvRecord.get("genres");
-                    List<Map<Long, String>> list = fromJson.readValue(genres, new TypeReference<List<HashMap<String, String>>>() {
-                    });
-
-                    ps.setLong(1, Integer.parseInt(csvRecord.get("id")));
-
-                    for (Map<Long, String> genress :
-                            list) {
-                        ps.setLong(2, Long.parseLong(genress.get("id")));
-                        ps.addBatch();
-                    }
-                }
-
-                @Override
-                public int getBatchSize() {
-                    return batch.size();
-                }
-            });
-
-            System.out.println("Heyyey!!");
+            jdbcTemplate.batchUpdate(sqlGenreInsert, genresBatchArgs);
+            jdbcTemplate.batchUpdate(sqlCollectionInsert, collectionsBatchArgs);
+            jdbcTemplate.batchUpdate(sqlMovieInsert, moviesBatchArgs);
+            jdbcTemplate.batchUpdate(sqlMovieGenreInsert, moviesGenreBatchArgs);
+            jdbcTemplate.batchUpdate(sqlMovieCollectionInsert, moviesCollectionBatchArgs);
         }
     }
 
-    private void insertGenres(List<CSVRecord> batch) {
+    private List<Object[]> prepareMovieCollectionBatchArgs(int movieId) {
+        if (belongsToCollection != null) {
+            Long id = Long.valueOf(belongsToCollection.get("id"));
+            return new ArrayList<>(Collections.singleton(new Object[]{movieId, id}));
+        }
 
-        List<HashMap<String, String>> genres = batch.stream().
-                map(record -> {
-                    try {
-                        return fromJson.readValue(record.get("genres"), new TypeReference<List<HashMap<String, String>>>() {
-                        });
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    return new ArrayList<HashMap<String, String>>();
-                })
-                .filter(hashMaps -> !hashMaps.isEmpty())
-                .flatMap(Collection::stream)
+        return Collections.EMPTY_LIST;
+    }
+
+    private List<Object[]> prepareCollectionBatchArgs(CSVRecord csvRecord) throws IOException {
+
+        if ("".equals(csvRecord.get("belongs_to_collection"))) {
+            belongsToCollection = null;
+            return Collections.EMPTY_LIST;
+        }
+
+        try {
+            belongsToCollection = fromJson.readValue(csvRecord.get("belongs_to_collection"), new TypeReference<HashMap<String, String>>() {
+            });
+        } catch (Exception e) {
+            String belongs_to_collection = csvRecord.get("belongs_to_collection").replaceAll("': None", "': null");
+            belongsToCollection = fromJson.readValue(belongs_to_collection, new TypeReference<HashMap<String, String>>() {
+            });
+        }
+
+        Long id = Long.valueOf(belongsToCollection.get("id"));
+        String name = belongsToCollection.get("name");
+        Object[] o = {id, name};
+
+        List<Object[]> l = new ArrayList<>();
+        l.add(o);
+
+        return l;
+    }
+
+    private List<Object[]> prepareMovieGenreBatchArgs(int movieId) {
+        return genres.stream()
+                .map(stringMap -> new Object[]{movieId, stringMap.get("id")})
                 .collect(Collectors.toList());
+    }
 
-        jdbcTemplate.batchUpdate("INSERT INTO genre(id, name) VALUES (?, ?) ON CONFLICT DO NOTHING", new BatchPreparedStatementSetter() {
-            @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
-                HashMap<String, String> stringStringHashMap = genres.get(i);
-
-                ps.setLong(1, Long.parseLong(stringStringHashMap.get("id")));
-                ps.setString(2, stringStringHashMap.get("name"));
-            }
-
-            @Override
-            public int getBatchSize() {
-                return genres.size();
-            }
+    private List<Object[]> prepareGenresBatchArgs(CSVRecord csvRecord) throws IOException {
+        genres = fromJson.readValue(csvRecord.get("genres"), new TypeReference<List<HashMap<String, ?>>>() {
         });
+
+        return genres.stream()
+                .map(longStringMap -> longStringMap.values().toArray())
+                .collect(Collectors.toList());
     }
 }
