@@ -9,6 +9,7 @@ import tech.itparklessons.movies.service.MovieService;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 @RestController
@@ -23,7 +24,7 @@ public class ImportMoviesController {
 
         final CSVParser parse = CSVFormat.DEFAULT
                 .withFirstRecordAsHeader()
-                .parse(new InputStreamReader(file.getInputStream()));
+                .parse(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
 
 
         movieService.importMovies(parse.getRecords());

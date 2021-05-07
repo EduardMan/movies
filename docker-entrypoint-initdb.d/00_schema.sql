@@ -39,30 +39,44 @@ CREATE TABLE collection
 
 CREATE TABLE movie_collection
 (
-    movie_id BIGINT REFERENCES movie,
+    movie_id      BIGINT REFERENCES movie,
     collection_id BIGINT REFERENCES collection
 );
 
 CREATE TABLE production_company
 (
     id   BIGINT PRIMARY KEY,
-    name TEXT unique
+    name TEXT
 );
 
 CREATE TABLE movie_production_company
 (
-    movie_id BIGINT REFERENCES movie,
+    movie_id              BIGINT REFERENCES movie,
     production_company_id BIGINT REFERENCES production_company
 );
 
 CREATE TABLE spoken_language
 (
     id_iso_639_1 TEXT PRIMARY KEY,
-    name         TEXT unique
+    name         TEXT,
+    UNIQUE (id_iso_639_1, name)
 );
 
 CREATE TABLE movie_spoken_languages
 (
     movie_id           BIGINT REFERENCES movie,
     spoken_language_id TEXT REFERENCES spoken_language
+);
+
+CREATE TABLE production_countries
+(
+    iso_3166_1 TEXT PRIMARY KEY,
+    name       TEXT,
+    UNIQUE (iso_3166_1, name)
+);
+
+CREATE TABLE movie_production_countries
+(
+    movie_id                BIGINT REFERENCES movie,
+    production_countries_id TEXT REFERENCES production_countries
 );
