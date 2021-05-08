@@ -1,12 +1,27 @@
 package tech.itparklessons.movies.model.entity;
 
-import java.util.Set;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
+import java.time.LocalDate;
+
+@Data
 public class Movie {
-    private Integer id;
-    private Long importedId;
-    private String title;
-    private String originalTitle;
-    private Integer budget;
-//    private Set<Genre> genres;
+    Long id;
+    String title;
+    String originalTitle;
+    Integer budget;
+    Boolean adult;
+    String homepage;
+    String imdbId;
+    String originalLanguage;
+    String overview;
+    Float popularity;
+    LocalDate releaseDate;
+    Long revenue;
+    Integer runtime;
+    String status;
+    String tagline;
+    Float voteAverage;
+    Integer voteCount;
 }
