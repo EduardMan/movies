@@ -3,13 +3,15 @@ package tech.itparklessons.movies.service.impl;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import tech.itparklessons.movies.model.enums.CsvMoviesColumnName;
+import tech.itparklessons.movies.model.enums.ImportCsvSqlQuery;
 import tech.itparklessons.movies.service.MovieService;
 
 import java.io.IOException;
@@ -21,44 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MovieServiceImpl implements MovieService {
     private final JdbcTemplate jdbcTemplate;
-
-    private final String sqlMovieInsert =
-            "INSERT INTO movie (id, title, original_title, budget, adult, homepage, imdb_id, original_language," +
-                    "overview, popularity, release_date, revenue, runtime, status, tagline, vote_average, vote_count) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
-
-    private final String sqlMovieGenreInsert =
-            "INSERT INTO movie_genre (movie_id, genre_id) VALUES (?, ?)";
-
-    private final String sqlGenreInsert = "INSERT INTO genre(name, id) VALUES (?, ?) ON CONFLICT DO NOTHING";
-
-    private final String sqlCollectionInsert = "INSERT INTO collection(id, name) VALUES (?, ?) ON CONFLICT DO NOTHING";
-
-    private final String sqlProductionCompanyInsert = "INSERT INTO production_company(name, id) VALUES (?, ?) ON CONFLICT DO NOTHING";
-
-    private final String sqlSpokenLanguageInsert = "INSERT INTO spoken_language(name, id_iso_639_1) VALUES (?, ?) ON CONFLICT DO NOTHING";
-
-    private final String sqlProductionCountryInsert = "INSERT INTO production_countries(iso_3166_1, name) VALUES (?, ?) ON CONFLICT DO NOTHING";
-
-    private final String sqlMovieCollectionInsert =
-            "INSERT INTO movie_collection (movie_id, collection_id) VALUES (?, ?)";
-
-    private final String sqlMovieProductionCompanyInsert =
-            "INSERT INTO movie_production_company (movie_id, production_company_id) VALUES (?, ?)";
-
-    private final String sqlMovieSpokenLanguageInsert =
-            "INSERT INTO movie_spoken_languages (movie_id, spoken_language_id) VALUES (?, ?)";
-
-    private final String sqlMovieProductionCountryInsert =
-            "INSERT INTO movie_production_countries (movie_id, production_countries_id) VALUES (?, ?)";
-
     public final ObjectMapper fromJson = new ObjectMapper();
-
-    private List<Map<String, ?>> genres;
-    private HashMap<String, String> belongsToCollection;
-    private List<Map<String, ?>> productionCompanies;
-    private List<Map<String, ?>> spokenLanguages;
-    private List<Map<String, ?>> productionCountries;
 
     @Override
     public void importMovies(List<CSVRecord> records) throws IOException {
@@ -70,23 +35,21 @@ public class MovieServiceImpl implements MovieService {
         for (List<CSVRecord> batch :
                 batchLists) {
 
-            List<Object[]> genresBatchArgs = new ArrayList<>();
-            List<Object[]> collectionsBatchArgs = new ArrayList<>();
-            List<Object[]> moviesBatchArgs = new ArrayList<>();
-            List<Object[]> productCompaniesBatchArgs = new ArrayList<>();
-            List<Object[]> spokenLanguageBatchArgs = new ArrayList<>();
-            List<Object[]> productionCountryBatchArgs = new ArrayList<>();
-            List<Object[]> moviesGenreBatchArgs = new ArrayList<>();
-            List<Object[]> moviesCollectionBatchArgs = new ArrayList<>();
-            List<Object[]> moviesProductCompaniesBatchArgs = new ArrayList<>();
-            List<Object[]> moviesSpokenLanguageBatchArgs = new ArrayList<>();
-            List<Object[]> moviesProductionCountryBatchArgs = new ArrayList<>();
+            Map<ImportCsvSqlQuery, List<Object[]>> predefinedListsForBatchArgs = getPredefinedListsForBatchArgs();
 
             for (int i = 0; i < batch.size(); i++) {
                 CSVRecord csvRecord = batch.get(i);
 
-                genresBatchArgs.addAll(prepareGenresBatchArgs(csvRecord));
-                collectionsBatchArgs.addAll(prepareCollectionBatchArgs(csvRecord));
+                List<Map<String, ?>> movieGenre = readJsonFromColumn(csvRecord, CsvMoviesColumnName.GENRES.getColumnName());
+                List<Map<String, ?>> movieBelongingToCollection = readJsonFromColumn(csvRecord, CsvMoviesColumnName.BELONGS_TO_COLLECTION.getColumnName());
+                List<Map<String, ?>> movieProductionCompanies;
+                List<Map<String, ?>> movieSpokenLanguages;
+                List<Map<String, ?>> movieProductionCountries;
+
+//                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.GENRE_INSERT).addAll(prepareGenresBatchArgs(csvRecord));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.GENRE_INSERT).addAll(getBatchArgs(movieGenre, List.of("id", "name")));
+//                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.COLLECTION_INSERT).addAll(prepareCollectionBatchArgs(csvRecord));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.COLLECTION_INSERT).addAll(getBatchArgs(movieBelongingToCollection, List.of("id", "name")));
 
                 //Movies
                 boolean adult = Boolean.getBoolean(csvRecord.get("adult"));
@@ -109,12 +72,15 @@ public class MovieServiceImpl implements MovieService {
                 int voteCount;
                 if (csvRecord.size() > 11) {
                     popularity = Float.parseFloat(csvRecord.get("popularity"));
-                    productionCountryBatchArgs.addAll(prepareProductCountryBatchArgs(csvRecord, "production_countries"));
-                    productCompaniesBatchArgs.addAll(prepareProductCompaniesBatchArgs(csvRecord, "production_companies"));
+//                    predefinedListsForBatchArgs.get(ImportCsvSqlQuery.PRODUCTION_COUNTRY_INSERT).addAll(prepareProductCountryBatchArgs(csvRecord, "production_countries"));
+                    movieProductionCountries = readJsonFromColumn(csvRecord, CsvMoviesColumnName.PRODUCTION_COUNTRIES.getColumnName());
+//                    predefinedListsForBatchArgs.get(ImportCsvSqlQuery.PRODUCTION_COMPANY_INSERT).addAll(prepareProductCompaniesBatchArgs(csvRecord, "production_companies"));
+                    movieProductionCompanies = readJsonFromColumn(csvRecord, CsvMoviesColumnName.PRODUCTION_COMPANIES.getColumnName());
                     releaseDate = "".equals(csvRecord.get("release_date")) ? null : LocalDate.parse(csvRecord.get("release_date"));
                     revenue = Long.parseLong(csvRecord.get("revenue"));
                     runtime = "".equals(csvRecord.get("runtime")) ? 0 : Integer.parseInt(csvRecord.get("runtime").replaceAll("\\..*", ""));
-                    spokenLanguageBatchArgs.addAll(prepareSpokenLanguageBatchArgs(csvRecord, "spoken_languages"));
+//                    predefinedListsForBatchArgs.get(ImportCsvSqlQuery.SPOKEN_LANGUAGE_INSERT).addAll(prepareSpokenLanguageBatchArgs(csvRecord, "spoken_languages"));
+                    movieSpokenLanguages = readJsonFromColumn(csvRecord, CsvMoviesColumnName.SPOKEN_LANGUAGES.getColumnName());
                     status = csvRecord.get("status");
                     tagline = csvRecord.get("tagline");
                     title = csvRecord.get("title");
@@ -124,12 +90,15 @@ public class MovieServiceImpl implements MovieService {
                     csvRecord = batch.get(++i);
                     overview += csvRecord.get("adult");
                     popularity = Float.parseFloat(csvRecord.get("belongs_to_collection"));
-                    productionCountryBatchArgs.addAll(prepareProductCountryBatchArgs(csvRecord, "homepage"));
-                    productCompaniesBatchArgs.addAll(prepareProductCompaniesBatchArgs(csvRecord, "genres"));
+//                    predefinedListsForBatchArgs.get(ImportCsvSqlQuery.PRODUCTION_COUNTRY_INSERT).addAll(prepareProductCountryBatchArgs(csvRecord, "homepage"));
+                    movieProductionCountries = readJsonFromColumn(csvRecord, CsvMoviesColumnName.HOMEPAGE.getColumnName());
+//                    predefinedListsForBatchArgs.get(ImportCsvSqlQuery.PRODUCTION_COMPANY_INSERT).addAll(prepareProductCompaniesBatchArgs(csvRecord, "genres"));
+                    movieProductionCompanies = readJsonFromColumn(csvRecord, CsvMoviesColumnName.GENRES.getColumnName());
                     releaseDate = "".equals(csvRecord.get("release_date")) ? null : LocalDate.parse(csvRecord.get("id"));
                     revenue = Long.parseLong(csvRecord.get("imdb_id"));
                     runtime = Integer.parseInt(csvRecord.get("original_language").replaceAll("\\..*", ""));
-                    spokenLanguageBatchArgs.addAll(prepareSpokenLanguageBatchArgs(csvRecord, "original_title"));
+//                    predefinedListsForBatchArgs.get(ImportCsvSqlQuery.SPOKEN_LANGUAGE_INSERT).addAll(prepareSpokenLanguageBatchArgs(csvRecord, "original_title"));
+                    movieSpokenLanguages = readJsonFromColumn(csvRecord, CsvMoviesColumnName.ORIGINAL_TITLE.getColumnName());
                     status = csvRecord.get("overview");
                     tagline = csvRecord.get("popularity");
                     title = csvRecord.get("poster_path");
@@ -138,131 +107,84 @@ public class MovieServiceImpl implements MovieService {
                 }
                 Object[] movieFields = {movieId, title, originalTitle, budget, adult, homepage, imdbId, originalLanguage,
                         overview, popularity, releaseDate, revenue, runtime, status, tagline, voteAverage, voteCount};
-                moviesBatchArgs.add(movieFields);
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_INSERT).add(movieFields);
 
-                moviesGenreBatchArgs.addAll(prepareMovieGenreBatchArgs(movieId));
-                moviesCollectionBatchArgs.addAll(prepareMovieCollectionBatchArgs(movieId));
-                moviesProductCompaniesBatchArgs.addAll(prepareMovieProductionCompanyBatchArgs(movieId));
-                moviesSpokenLanguageBatchArgs.addAll(prepareMovieSpokenLanguageBatchArgs(movieId));
-                moviesProductionCountryBatchArgs.addAll(prepareMovieProductionCountryBatchArgs(movieId));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.PRODUCTION_COUNTRY_INSERT).addAll(getBatchArgs(movieProductionCountries, List.of("iso_3166_1", "name")));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.SPOKEN_LANGUAGE_INSERT).addAll(getBatchArgs(movieSpokenLanguages, List.of("iso_639_1", "name")));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.PRODUCTION_COMPANY_INSERT).addAll(getBatchArgs(movieProductionCompanies, List.of("id", "name")));
+
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_GENRE_INSERT).addAll(getRelationalBatchArgs(movieId, "id", movieGenre));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_COLLECTION_INSERT).addAll(getRelationalBatchArgs(movieId, "id", movieBelongingToCollection));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_PRODUCTION_COMPANY_INSERT).addAll(getRelationalBatchArgs(movieId, "id", movieProductionCompanies));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_SPOKEN_LANGUAGE_INSERT).addAll(getRelationalBatchArgs(movieId, "iso_639_1", movieSpokenLanguages));
+                predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_PRODUCTION_COUNTRY_INSERT).addAll(getRelationalBatchArgs(movieId, "iso_3166_1", movieProductionCountries));
             }
 
-            jdbcTemplate.batchUpdate(sqlGenreInsert, genresBatchArgs);
-            jdbcTemplate.batchUpdate(sqlCollectionInsert, collectionsBatchArgs);
-            jdbcTemplate.batchUpdate(sqlProductionCompanyInsert, productCompaniesBatchArgs);
-            jdbcTemplate.batchUpdate(sqlSpokenLanguageInsert, spokenLanguageBatchArgs);
-            jdbcTemplate.batchUpdate(sqlProductionCountryInsert, productionCountryBatchArgs);
-            jdbcTemplate.batchUpdate(sqlMovieInsert, moviesBatchArgs);
-            jdbcTemplate.batchUpdate(sqlMovieGenreInsert, moviesGenreBatchArgs);
-            jdbcTemplate.batchUpdate(sqlMovieCollectionInsert, moviesCollectionBatchArgs);
-            jdbcTemplate.batchUpdate(sqlMovieProductionCompanyInsert, moviesProductCompaniesBatchArgs);
-            jdbcTemplate.batchUpdate(sqlMovieSpokenLanguageInsert, moviesSpokenLanguageBatchArgs);
-            jdbcTemplate.batchUpdate(sqlMovieProductionCountryInsert, moviesProductionCountryBatchArgs);
+            batchUpdate(predefinedListsForBatchArgs);
         }
     }
 
-    private List<Object[]> prepareMovieProductionCountryBatchArgs(int movieId) {
-        return productionCountries.stream()
-                .map(stringMap -> new Object[]{movieId, stringMap.get("iso_3166_1")})
-                .collect(Collectors.toList());
+    private void batchUpdate(Map<ImportCsvSqlQuery, List<Object[]>> predefinedListsForBatchArgs) {
+        for (Map.Entry<ImportCsvSqlQuery, List<Object[]>> batch : predefinedListsForBatchArgs.entrySet()) {
+            jdbcTemplate.batchUpdate(batch.getKey().getSqlQuery(), batch.getValue());
+        }
     }
 
-    private List<Object[]> prepareProductCountryBatchArgs(CSVRecord csvRecord, String columnName) throws IOException {
-        productionCountries = fromJson.readValue(csvRecord.get(columnName), new TypeReference<List<HashMap<String, ?>>>() {
-        });
-
-        return productionCountries.stream()
-                .map(stringMap -> stringMap.values().toArray())
-                .collect(Collectors.toList());
-    }
-
-    private List<Object[]> prepareMovieSpokenLanguageBatchArgs(int movieId) {
-        return spokenLanguages.stream()
-                .map(stringMap -> new Object[]{movieId, stringMap.get("iso_639_1")})
-                .collect(Collectors.toList());
-    }
-
-    private List<Object[]> prepareSpokenLanguageBatchArgs(CSVRecord csvRecord, String columnName) throws IOException {
-        try {
-            spokenLanguages = fromJson.readValue(csvRecord.get(columnName), new TypeReference<List<HashMap<String, ?>>>() {
-            });
-        } catch (JsonMappingException e) {
-            spokenLanguages = fromJson.readValue(csvRecord.get(columnName).replace("\\", "\\\\"), new TypeReference<List<HashMap<String, ?>>>() {
-            });
+    private Map<ImportCsvSqlQuery, List<Object[]>> getPredefinedListsForBatchArgs() {
+        EnumMap<ImportCsvSqlQuery, List<Object[]>> predefinedListsForBatchArgs = new EnumMap<>(ImportCsvSqlQuery.class);
+        for (ImportCsvSqlQuery importCsvSqlQuery :
+                ImportCsvSqlQuery.values()) {
+            predefinedListsForBatchArgs.put(importCsvSqlQuery, new ArrayList<>());
         }
 
-        return spokenLanguages.stream()
-                .map(stringMap -> stringMap.values().toArray())
+        return predefinedListsForBatchArgs;
+    }
+
+    private List<Object[]> getRelationalBatchArgs(int movieId, String columnNameId, List<Map<String, ?>> collection) {
+        return collection.stream()
+                .map(map -> new Object[]{movieId, map.get(columnNameId)})
                 .collect(Collectors.toList());
     }
 
-    private List<Object[]> prepareMovieProductionCompanyBatchArgs(int movieId) {
-        return productionCompanies.stream()
-                .map(stringMap -> new Object[]{movieId, stringMap.get("id")})
-                .collect(Collectors.toList());
-    }
+    private List<Map<String, ?>> readJsonFromColumn(CSVRecord csvRecord, String columnName) throws IOException {
+        List<Map<String, ?>> jsonValueFromColumn;
+        String columnContent = csvRecord.get(columnName);
 
-    private List<Object[]> prepareProductCompaniesBatchArgs(CSVRecord csvRecord, String columnName) throws IOException {
-        try {
-            productionCompanies = fromJson.readValue(csvRecord.get(columnName), new TypeReference<List<HashMap<String, ?>>>() {
-            });
-        } catch (JsonMappingException e) {
-            productionCompanies = fromJson.readValue(csvRecord.get(columnName).replace("\\", "\\\\"), new TypeReference<List<HashMap<String, ?>>>() {
-            });
+        if (columnContent.isEmpty()) {
+            return Collections.emptyList();
         }
 
-        return productionCompanies.stream()
-                .map(stringMap -> stringMap.values().toArray())
-                .collect(Collectors.toList());
-    }
-
-    private List<Object[]> prepareMovieCollectionBatchArgs(int movieId) {
-        if (belongsToCollection != null) {
-            Long id = Long.valueOf(belongsToCollection.get("id"));
-            return new ArrayList<>(Collections.singleton(new Object[]{movieId, id}));
-        }
-
-        return Collections.EMPTY_LIST;
-    }
-
-    private List<Object[]> prepareCollectionBatchArgs(CSVRecord csvRecord) throws IOException {
-
-        if ("".equals(csvRecord.get("belongs_to_collection"))) {
-            belongsToCollection = null;
-            return Collections.EMPTY_LIST;
-        }
+        String preparedColumnContent = columnContent.replace("\\", "\\\\").replace("': None", "': null");
 
         try {
-            belongsToCollection = fromJson.readValue(csvRecord.get("belongs_to_collection"), new TypeReference<HashMap<String, String>>() {
+            jsonValueFromColumn = fromJson.readValue(preparedColumnContent, new TypeReference<List<HashMap<String, ?>>>() {
             });
-        } catch (Exception e) {
-            String belongs_to_collection = csvRecord.get("belongs_to_collection").replaceAll("': None", "': null");
-            belongsToCollection = fromJson.readValue(belongs_to_collection, new TypeReference<HashMap<String, String>>() {
-            });
+        } catch (MismatchedInputException e) {
+            jsonValueFromColumn = Collections.singletonList(fromJson.readValue(preparedColumnContent, new TypeReference<HashMap<String, ?>>() {
+            }));
         }
 
-        Long id = Long.valueOf(belongsToCollection.get("id"));
-        String name = belongsToCollection.get("name");
-        Object[] o = {id, name};
-
-        List<Object[]> l = new ArrayList<>();
-        l.add(o);
-
-        return l;
+        return jsonValueFromColumn;
     }
 
-    private List<Object[]> prepareMovieGenreBatchArgs(int movieId) {
-        return genres.stream()
-                .map(stringMap -> new Object[]{movieId, stringMap.get("id")})
-                .collect(Collectors.toList());
-    }
+    private List<Object[]> getBatchArgs(List<Map<String, ?>> movieInfos, List<String> columnNames) {
 
-    private List<Object[]> prepareGenresBatchArgs(CSVRecord csvRecord) throws IOException {
-        genres = fromJson.readValue(csvRecord.get("genres"), new TypeReference<List<HashMap<String, ?>>>() {
-        });
+        //TODO: try stream
 
-        return genres.stream()
-                .map(longStringMap -> longStringMap.values().toArray())
-                .collect(Collectors.toList());
+        List<Object[]> www = new ArrayList<>();
+        List<Object> wer;
+
+        for (Map<String, ?> movieInfo :
+                movieInfos) {
+            wer = new ArrayList<>();
+            for (String columnName : columnNames) {
+                Object o = movieInfo.get(columnName);
+                wer.add(o);
+            }
+            www.add(wer.toArray());
+        }
+
+
+        return www;
     }
 }

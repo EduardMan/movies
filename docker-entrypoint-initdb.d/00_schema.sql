@@ -57,9 +57,9 @@ CREATE TABLE movie_production_company
 
 CREATE TABLE spoken_language
 (
-    id_iso_639_1 TEXT PRIMARY KEY,
+    iso_639_1 TEXT PRIMARY KEY,
     name         TEXT,
-    UNIQUE (id_iso_639_1, name)
+    UNIQUE (iso_639_1, name)
 );
 
 CREATE TABLE movie_spoken_languages
