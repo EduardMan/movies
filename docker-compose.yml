@@ -1,11 +1,8 @@
 version: '3.7'
 services:
   movies:
-#    image: ghcr.io/eduardman/movies:latest
-#    build: .
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/eduardman/movies:latest
+    build: .
     ports:
       - 8080:8080
     environment:
