@@ -51,7 +51,7 @@ public class MovieDetailsRowMapper extends BeanPropertyRowMapper<MovieDetails> {
         movieDetails.setProductionCompanies(fromJson.readValue(productionCompaniesRaw.getValue(), new TypeReference<Set<ProductionCompany>>() {
         }));
 
-        PGobject productionCountriesRaw = (PGobject) rs.getObject("production_countries");
+        PGobject productionCountriesRaw = (PGobject) rs.getObject("production_country");
         movieDetails.setProductionCountries(fromJson.readValue(productionCountriesRaw.getValue(), new TypeReference<Set<ProductionCountry>>() {
         }));
 

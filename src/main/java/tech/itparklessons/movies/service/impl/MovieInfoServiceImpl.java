@@ -55,14 +55,14 @@ public class MovieInfoServiceImpl implements MoviesInfoService {
                 "json_agg(jsonb_build_object('id', collection_id, 'name', c.name)) AS collections, " +
                 "json_agg(jsonb_build_object('id', genre_id, 'name', genre.name)) AS genres, " +
                 "json_agg(jsonb_build_object('id', production_company_id, 'name', pc.name)) AS production_companies, " +
-                "json_agg(jsonb_build_object('iso_3166_1', production_countries_id, 'name', pcs.name)) AS production_countries, " +
+                "json_agg(jsonb_build_object('iso_3166_1', production_country_id, 'name', pcs.name)) AS production_country, " +
                 "json_agg(jsonb_build_object('iso_639_1', spoken_language_id, 'name', sl.name)) AS spoken_languages " +
                 "FROM movie " +
                 "INNER JOIN movie_collection mc on movie.id = mc.movie_id INNER JOIN collection c on c.id = mc.collection_id " +
                 "INNER JOIN movie_genre mg on movie.id = mg.movie_id INNER JOIN genre ON mg.genre_id = genre.id " +
                 "INNER JOIN movie_production_company mpc on movie.id = mpc.movie_id INNER JOIN production_company pc on mpc.production_company_id = pc.id " +
-                "INNER JOIN movie_production_countries mpcs on movie.id = mpcs.movie_id INNER JOIN production_countries pcs on mpcs.production_countries_id = pcs.iso_3166_1 " +
-                "INNER JOIN movie_spoken_languages msl on movie.id = msl.movie_id INNER JOIN spoken_language sl on msl.spoken_language_id = sl.iso_639_1 " +
+                "INNER JOIN movie_production_country mpcs on movie.id = mpcs.movie_id INNER JOIN production_country pcs on mpcs.production_country_id = pcs.iso_3166_1 " +
+                "INNER JOIN movie_spoken_language msl on movie.id = msl.movie_id INNER JOIN spoken_language sl on msl.spoken_language_id = sl.iso_639_1 " +
                 "WHERE movie.id = ? " +
                 "GROUP BY movie.id, title, original_title, budget, adult, homepage, imdb_id, original_language, overview, " +
                 "popularity, release_date, revenue, runtime, status, tagline, vote_average, vote_count;", new MovieDetailsRowMapper(), movieId);
