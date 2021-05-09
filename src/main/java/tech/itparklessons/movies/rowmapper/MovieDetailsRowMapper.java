@@ -1,4 +1,4 @@
-package tech.itparklessons.movies.converter;
+package tech.itparklessons.movies.rowmapper;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +12,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Set;
 
+import static tech.itparklessons.movies.model.enums.CsvMoviesColumn.*;
+
 public class MovieDetailsRowMapper extends BeanPropertyRowMapper<MovieDetails> {
     public final ObjectMapper fromJson = new ObjectMapper();
 
@@ -19,23 +21,23 @@ public class MovieDetailsRowMapper extends BeanPropertyRowMapper<MovieDetails> {
     @Override
     public MovieDetails mapRow(ResultSet rs, int rowNumber) throws SQLException {
         MovieDetails movieDetails = new MovieDetails();
-        movieDetails.setId(rs.getLong("id"));
-        movieDetails.setTitle(rs.getString("title"));
-        movieDetails.setOriginalTitle(rs.getString("original_title"));
-        movieDetails.setBudget(rs.getInt("budget"));
-        movieDetails.setAdult(rs.getBoolean("adult"));
-        movieDetails.setHomepage(rs.getString("homepage"));
-        movieDetails.setImdbId(rs.getString("imdb_id"));
-        movieDetails.setOriginalLanguage(rs.getString("original_language"));
-        movieDetails.setOverview(rs.getString("overview"));
-        movieDetails.setPopularity(rs.getFloat("popularity"));
-        movieDetails.setReleaseDate(LocalDate.parse(rs.getString("release_date")));
-        movieDetails.setRevenue(rs.getLong("revenue"));
-        movieDetails.setRuntime(rs.getInt("runtime"));
-        movieDetails.setStatus(rs.getString("status"));
-        movieDetails.setTagline(rs.getString("tagline"));
-        movieDetails.setVoteAverage(rs.getFloat("vote_average"));
-        movieDetails.setVoteCount(rs.getInt("vote_count"));
+        movieDetails.setId(rs.getLong(ID.getColumnName()));
+        movieDetails.setTitle(rs.getString(TITLE.getColumnName()));
+        movieDetails.setOriginalTitle(rs.getString(ORIGINAL_TITLE.getColumnName()));
+        movieDetails.setBudget(rs.getInt(BUDGET.getColumnName()));
+        movieDetails.setAdult(rs.getBoolean(ADULT.getColumnName()));
+        movieDetails.setHomepage(rs.getString(HOMEPAGE.getColumnName()));
+        movieDetails.setImdbId(rs.getString(IMDB_ID.getColumnName()));
+        movieDetails.setOriginalLanguage(rs.getString(ORIGINAL_LANGUAGE.getColumnName()));
+        movieDetails.setOverview(rs.getString(OVERVIEW.getColumnName()));
+        movieDetails.setPopularity(rs.getFloat(POPULARITY.getColumnName()));
+        movieDetails.setReleaseDate(LocalDate.parse(rs.getString(RELEASE_DATE.getColumnName())));
+        movieDetails.setRevenue(rs.getLong(REVENUE.getColumnName()));
+        movieDetails.setRuntime(rs.getInt(RUNTIME.getColumnName()));
+        movieDetails.setStatus(rs.getString(STATUS.getColumnName()));
+        movieDetails.setTagline(rs.getString(TAGLINE.getColumnName()));
+        movieDetails.setVoteAverage(rs.getFloat(VOTE_AVERAGE.getColumnName()));
+        movieDetails.setVoteCount(rs.getInt(VOTE_COUNT.getColumnName()));
 
         PGobject collectionRaw = (PGobject) rs.getObject("collections");
         movieDetails.setCollections(fromJson.readValue(collectionRaw.getValue(), new TypeReference<Set<Collection>>() {

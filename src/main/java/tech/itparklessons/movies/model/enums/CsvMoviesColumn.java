@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public enum CsvMoviesColumnName {
+public enum CsvMoviesColumn {
     ADULT("adult"),
     BELONGS_TO_COLLECTION("belongs_to_collection"),
     BUDGET("budget"),

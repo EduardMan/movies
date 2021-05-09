@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import tech.itparklessons.movies.converter.CompanyFilmsByReleaseDateRowMapper;
-import tech.itparklessons.movies.converter.MovieDetailsRowMapper;
 import tech.itparklessons.movies.model.entity.*;
+import tech.itparklessons.movies.rowmapper.CompanyFilmsByReleaseDateRowMapper;
+import tech.itparklessons.movies.rowmapper.MovieDetailsRowMapper;
 import tech.itparklessons.movies.service.MoviesInfoService;
 
 import java.util.List;
@@ -78,9 +78,9 @@ public class MovieInfoServiceImpl implements MoviesInfoService {
         return jdbcTemplate.query("SELECT json_agg(jsonb_build_object('id', id, 'title', title, 'original_title', original_title, " +
                 "'budget', budget, 'adult', adult, 'homepage', homepage, 'imdb_id', imdb_id, 'original_language', original_language, " +
                 "'overview', overview, 'popularity', popularity, 'release_date', release_date, 'revenue', revenue, 'runtime', runtime, " +
-                "'status', status, 'tagline', tagline, 'vote_average', vote_average, 'vote_count', vote_count)), " +
-                "EXTRACT(YEAR FROM release_date) as year " +
+                "'status', status, 'tagline', tagline, 'vote_average', vote_average, 'vote_count', vote_count)) as movie, " +
+                "EXTRACT(YEAR FROM release_date) as release_year " +
                 "FROM movie INNER JOIN movie_production_company mpc on movie.id = mpc.movie_id " +
-                "WHERE production_company_id = 2 GROUP BY year ORDER BY year;", new CompanyFilmsByReleaseDateRowMapper());
+                "WHERE production_company_id = ? GROUP BY release_year ORDER BY release_year;", new CompanyFilmsByReleaseDateRowMapper(), productionCompanyId);
     }
 }

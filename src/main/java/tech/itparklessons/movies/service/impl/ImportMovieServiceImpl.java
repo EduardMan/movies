@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import tech.itparklessons.movies.model.enums.CsvMoviesColumnName;
 import tech.itparklessons.movies.model.enums.ImportCsvSqlQuery;
 import tech.itparklessons.movies.service.ImportMovieService;
 
@@ -18,6 +17,8 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static tech.itparklessons.movies.model.enums.CsvMoviesColumn.*;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +41,8 @@ public class ImportMovieServiceImpl implements ImportMovieService {
             for (int i = 0; i < batch.size(); i++) {
                 CSVRecord csvRecord = batch.get(i);
 
-                List<Map<String, ?>> movieGenre = readJsonFromColumn(csvRecord, CsvMoviesColumnName.GENRES.getColumnName());
-                List<Map<String, ?>> movieBelongingToCollection = readJsonFromColumn(csvRecord, CsvMoviesColumnName.BELONGS_TO_COLLECTION.getColumnName());
+                List<Map<String, ?>> movieGenre = readJsonFromColumn(csvRecord, GENRES.getColumnName());
+                List<Map<String, ?>> movieBelongingToCollection = readJsonFromColumn(csvRecord, BELONGS_TO_COLLECTION.getColumnName());
                 List<Map<String, ?>> movieProductionCompanies;
                 List<Map<String, ?>> movieSpokenLanguages;
                 List<Map<String, ?>> movieProductionCountries;
@@ -50,14 +51,14 @@ public class ImportMovieServiceImpl implements ImportMovieService {
                 predefinedListsForBatchArgs.get(ImportCsvSqlQuery.COLLECTION_INSERT).addAll(getBatchArgs(movieBelongingToCollection, List.of("id", "name")));
 
                 //Movies
-                boolean adult = Boolean.getBoolean(csvRecord.get("adult"));
-                int budget = Integer.parseInt(csvRecord.get("budget"));
-                String homepage = csvRecord.get("homepage");
-                int movieId = Integer.parseInt(csvRecord.get("id"));
-                String imdbId = csvRecord.get("imdb_id");
-                String originalLanguage = csvRecord.get("original_language");
-                String originalTitle = csvRecord.get("original_title");
-                String overview = csvRecord.get("overview");
+                boolean adult = Boolean.getBoolean(csvRecord.get(ADULT.getColumnName()));
+                int budget = Integer.parseInt(csvRecord.get(BUDGET.getColumnName()));
+                String homepage = csvRecord.get(HOMEPAGE.getColumnName());
+                int movieId = Integer.parseInt(csvRecord.get(ID.getColumnName()));
+                String imdbId = csvRecord.get(IMDB_ID.getColumnName());
+                String originalLanguage = csvRecord.get(ORIGINAL_LANGUAGE.getColumnName());
+                String originalTitle = csvRecord.get(ORIGINAL_TITLE.getColumnName());
+                String overview = csvRecord.get(OVERVIEW.getColumnName());
 
                 String title;
                 float popularity;
@@ -69,33 +70,33 @@ public class ImportMovieServiceImpl implements ImportMovieService {
                 float voteAverage;
                 int voteCount;
                 if (csvRecord.size() > 11) {
-                    popularity = Float.parseFloat(csvRecord.get("popularity"));
-                    movieProductionCountries = readJsonFromColumn(csvRecord, CsvMoviesColumnName.PRODUCTION_COUNTRIES.getColumnName());
-                    movieProductionCompanies = readJsonFromColumn(csvRecord, CsvMoviesColumnName.PRODUCTION_COMPANIES.getColumnName());
-                    releaseDate = "".equals(csvRecord.get("release_date")) ? null : LocalDate.parse(csvRecord.get("release_date"));
-                    revenue = Long.parseLong(csvRecord.get("revenue"));
-                    runtime = "".equals(csvRecord.get("runtime")) ? 0 : Integer.parseInt(csvRecord.get("runtime").replaceAll("\\..*", ""));
-                    movieSpokenLanguages = readJsonFromColumn(csvRecord, CsvMoviesColumnName.SPOKEN_LANGUAGES.getColumnName());
-                    status = csvRecord.get("status");
-                    tagline = csvRecord.get("tagline");
-                    title = csvRecord.get("title");
-                    voteAverage = Float.parseFloat(csvRecord.get("vote_average"));
-                    voteCount = Integer.parseInt(csvRecord.get("vote_count"));
+                    popularity = Float.parseFloat(csvRecord.get(POPULARITY.getColumnName()));
+                    movieProductionCountries = readJsonFromColumn(csvRecord, PRODUCTION_COUNTRIES.getColumnName());
+                    movieProductionCompanies = readJsonFromColumn(csvRecord, PRODUCTION_COMPANIES.getColumnName());
+                    releaseDate = "".equals(csvRecord.get(RELEASE_DATE.getColumnName())) ? null : LocalDate.parse(csvRecord.get("release_date"));
+                    revenue = Long.parseLong(csvRecord.get(REVENUE.getColumnName()));
+                    runtime = "".equals(csvRecord.get(RUNTIME.getColumnName())) ? 0 : Integer.parseInt(csvRecord.get("runtime").replaceAll("\\..*", ""));
+                    movieSpokenLanguages = readJsonFromColumn(csvRecord, SPOKEN_LANGUAGES.getColumnName());
+                    status = csvRecord.get(STATUS.getColumnName());
+                    tagline = csvRecord.get(TAGLINE.getColumnName());
+                    title = csvRecord.get(TITLE.getColumnName());
+                    voteAverage = Float.parseFloat(csvRecord.get(VOTE_AVERAGE.getColumnName()));
+                    voteCount = Integer.parseInt(csvRecord.get(VOTE_COUNT.getColumnName()));
                 } else {
                     csvRecord = batch.get(++i);
-                    overview += csvRecord.get("adult");
-                    popularity = Float.parseFloat(csvRecord.get("belongs_to_collection"));
-                    movieProductionCountries = readJsonFromColumn(csvRecord, CsvMoviesColumnName.HOMEPAGE.getColumnName());
-                    movieProductionCompanies = readJsonFromColumn(csvRecord, CsvMoviesColumnName.GENRES.getColumnName());
-                    releaseDate = "".equals(csvRecord.get("release_date")) ? null : LocalDate.parse(csvRecord.get("id"));
-                    revenue = Long.parseLong(csvRecord.get("imdb_id"));
-                    runtime = Integer.parseInt(csvRecord.get("original_language").replaceAll("\\..*", ""));
-                    movieSpokenLanguages = readJsonFromColumn(csvRecord, CsvMoviesColumnName.ORIGINAL_TITLE.getColumnName());
-                    status = csvRecord.get("overview");
-                    tagline = csvRecord.get("popularity");
+                    overview += csvRecord.get(ADULT.getColumnName());
+                    popularity = Float.parseFloat(csvRecord.get(BELONGS_TO_COLLECTION.getColumnName()));
+                    movieProductionCountries = readJsonFromColumn(csvRecord, HOMEPAGE.getColumnName());
+                    movieProductionCompanies = readJsonFromColumn(csvRecord, GENRES.getColumnName());
+                    releaseDate = "".equals(csvRecord.get(RELEASE_DATE.getColumnName())) ? null : LocalDate.parse(csvRecord.get("id"));
+                    revenue = Long.parseLong(csvRecord.get(IMDB_ID.getColumnName()));
+                    runtime = Integer.parseInt(csvRecord.get(ORIGINAL_LANGUAGE.getColumnName()).replaceAll("\\..*", ""));
+                    movieSpokenLanguages = readJsonFromColumn(csvRecord, ORIGINAL_TITLE.getColumnName());
+                    status = csvRecord.get(OVERVIEW.getColumnName());
+                    tagline = csvRecord.get(POPULARITY.getColumnName());
                     title = csvRecord.get("poster_path");
-                    voteAverage = Float.parseFloat(csvRecord.get("production_countries"));
-                    voteCount = Integer.parseInt(csvRecord.get("release_date"));
+                    voteAverage = Float.parseFloat(csvRecord.get(PRODUCTION_COUNTRIES.getColumnName()));
+                    voteCount = Integer.parseInt(csvRecord.get(RELEASE_DATE.getColumnName()));
                 }
                 Object[] movieFields = {movieId, title, originalTitle, budget, adult, homepage, imdbId, originalLanguage,
                         overview, popularity, releaseDate, revenue, runtime, status, tagline, voteAverage, voteCount};
@@ -160,23 +161,19 @@ public class ImportMovieServiceImpl implements ImportMovieService {
     }
 
     private List<Object[]> getBatchArgs(List<Map<String, ?>> movieInfos, List<String> columnNames) {
-
-        //TODO: try stream
-
-        List<Object[]> www = new ArrayList<>();
-        List<Object> wer;
+        List<Object[]> batchArgs = new ArrayList<>();
+        List<Object> internalBatchArgs;
 
         for (Map<String, ?> movieInfo :
                 movieInfos) {
-            wer = new ArrayList<>();
+            internalBatchArgs = new ArrayList<>();
             for (String columnName : columnNames) {
-                Object o = movieInfo.get(columnName);
-                wer.add(o);
+                Object columnContent = movieInfo.get(columnName);
+                internalBatchArgs.add(columnContent);
             }
-            www.add(wer.toArray());
+            batchArgs.add(internalBatchArgs.toArray());
         }
 
-
-        return www;
+        return batchArgs;
     }
 }
