@@ -69,6 +69,9 @@ public class ImportMovieServiceImpl implements ImportMovieService {
                 String tagline;
                 float voteAverage;
                 int voteCount;
+
+                // Regular correct record contains more than 11 columns.
+                // If number of columns are less than 11 this record is incorrect and we should handle it with specific rules.
                 if (csvRecord.size() > 11) {
                     popularity = Float.parseFloat(csvRecord.get(POPULARITY.getColumnName()));
                     movieProductionCountries = readJsonFromColumn(csvRecord, PRODUCTION_COUNTRIES.getColumnName());
@@ -98,6 +101,7 @@ public class ImportMovieServiceImpl implements ImportMovieService {
                     voteAverage = Float.parseFloat(csvRecord.get(PRODUCTION_COUNTRIES.getColumnName()));
                     voteCount = Integer.parseInt(csvRecord.get(RELEASE_DATE.getColumnName()));
                 }
+
                 Object[] movieFields = {movieId, title, originalTitle, budget, adult, homepage, imdbId, originalLanguage,
                         overview, popularity, releaseDate, revenue, runtime, status, tagline, voteAverage, voteCount};
                 predefinedListsForBatchArgs.get(ImportCsvSqlQuery.MOVIE_INSERT).add(movieFields);
